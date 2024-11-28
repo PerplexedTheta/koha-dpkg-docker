@@ -7,8 +7,8 @@ my $env_vars = {
     SYNC_REPO     => $ENV{SYNC_REPO} || '.',
     DEBS_OUT      => $ENV{DEBS_OUT} || './debs',
     LOCAL_USER_ID => qx{id -u},
-    KDD_IMAGE     => $ENV{KDD_IMAGE} || 'main',
-    KDD_BRANCH    => $ENV{KDD_BRANCH} || 'main',
+    KDD_IMAGE     => $ENV{KDD_IMAGE} || '23.11',
+    KDD_BRANCH    => $ENV{KDD_BRANCH} || '23.11',
 };
 while ( my ( $var, $value ) = each %$env_vars ) {
     $ENV{$var} = $value;
