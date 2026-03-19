@@ -132,15 +132,15 @@ cat <<EOF | tee /tmp/koha-dpkg-docker/build.sh
 echo "I: Running $0"
 
 ## update now
-apt clean; apt update
-apt upgrade -y
+/usr/bin/apt clean; apt update
+/usr/bin/apt upgrade -y
 
 ## cd to workdir, run update.sh
 cd /kohaclone
 
 ## run update.sh inside pbuilder env
 echo -ne '#!/usr/bin/env bash\\n\\napt clean ; apt update\napt upgrade -y\napt full-upgrade -y' | tee /tmp/apt_upgrade.sh
-chmod -v 0755 /tmp/apt_upgrade.sh
+/usr/bin/chmod -v 0755 /tmp/apt_upgrade.sh
 /usr/sbin/pbuilder --execute --save-after-exec -- /tmp/apt_upgrade.sh
 
 ## determine version
@@ -180,24 +180,34 @@ MANIFEST="\$(echo "\${MANIFEST}" | jq '.')"
 
 ## prep env
 export PERL5LIB="/kohaclone:/kohaclone/lib"
+export PERL_MM_USE_DEFAULT=1
 export KOHA_CONF=""
 export KOHA_HOME="/kohaclone"
 
 ## prep git
-git config --global user.email "root@localhost.localnet"
-git config --global user.name  "root"
+/usr/bin/git config --global user.email "root@localhost.localnet"
+/usr/bin/git config --global user.name  "root"
+/usr/bin/cat .gitignore | /usr/bin/xargs rm -rvf {} \\;
+/usr/bin/git reset --hard HEAD
 
 ## prep control
 ./debian/update-control
-/usr/bin/git add debian/control
+/usr/bin/git add -f debian/control
 /usr/bin/git commit --no-verify -m "LOCAL: Updated debian/control file: \${PKG_VERSION}"
 
-## prep css / js / po
-/usr/bin/perl build-resources.PL
-/usr/bin/git add koha-tmpl\\/* -f
-/usr/bin/git add api\\/* -f
-/usr/bin/git add misc/translator/po\\/* -f
+## prep koha
+/usr/bin/perl Makefile.PL
+/usr/bin/make all
+
+## ingest variously build files
+/usr/bin/git add -f api\\/*
+/usr/bin/git add -f koha-tmpl\\/*
+/usr/bin/git add -f t\\/*
 /usr/bin/git commit --no-verify -m "LOCAL: Updated js / css: \${PKG_VERSION}"
+
+## ingest any changes to po-files
+/usr/bin/git add -f misc/translator\\/*
+/usr/bin/git commit --no-verify -m "LOCAL: Updated translations: \${PKG_VERSION}"
 
 ## build dpkg
 /usr/bin/dch --force-distribution -D "\${DISTRIBUTION}" -v "\${PKG_VERSION}" "Building git snapshot." || exit 1
