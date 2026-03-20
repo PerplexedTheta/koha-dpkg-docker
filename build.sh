@@ -5,41 +5,41 @@ SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)" # get current script dir portibly
 
 if [[ ${SUDO_USER} ]]; then
-	REAL_USER="${SUDO_USER}" # or use sudo user
+    REAL_USER="${SUDO_USER}" # or use sudo user
 else
-	REAL_USER="$(id -un)" # fallback to root
+    REAL_USER="$(id -un)" # fallback to root
 fi
 REAL_GROUP="$(id -gn ${REAL_USER})" # fallback to real_user group
 
 if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
-	echo -ne "E: No env file present! Please create one. See the wiki for details\n"
-	exit 1
+    echo -ne "E: No env file present! Please create one. See the wiki for details\n"
+    exit 1
 fi
 . ${SCRIPT_DIR}/.env
 printenv
 
 KERNEL="$(uname -s)"
 if [[ "${KERNEL}" != "Linux" ]]; then
-	echo "E: Unsupported system kernel: ${KERNEL}"
-	exit 1
+    echo "E: Unsupported system kernel: ${KERNEL}"
+    exit 1
 fi
 
 ARCH="$(arch)"
 PLATFORM="linux/${ARCH}"
 if [[ "${ARCH}" == "x86_64" ]]; then
-	export ARCH="amd64"
-	export PLATFORM="linux/amd64"
+    export ARCH="amd64"
+    export PLATFORM="linux/amd64"
 elif [[ "${ARCH}" == "aarch64" ]]; then
-	export ARCH="arm64v8"
-	export PLATFORM="linux/arm64/v8"
+    export ARCH="arm64v8"
+    export PLATFORM="linux/arm64/v8"
 else
-	echo "E: Unsupported CPU architecture: ${ARCH}"
-	exit 1
+    echo "E: Unsupported CPU architecture: ${ARCH}"
+    exit 1
 fi
 
 if [[ "$(docker system info | grep 'io.containerd.snapshotter.v1')" == "" ]]; then
-	echo "E: Docker must be set to use containerd-snapshotter. Please see https://docs.docker.com/engine/storage/containerd/#enable-containerd-image-store-on-docker-engine"
-	exit 1
+    echo "E: Docker must be set to use containerd-snapshotter. Please see https://docs.docker.com/engine/storage/containerd/#enable-containerd-image-store-on-docker-engine"
+    exit 1
 fi
 
 
@@ -55,8 +55,8 @@ echo -ne "I: Please ensure docker and pbuilder are properly installed, and your 
 ##
 ## check keyring is present
 if [[ ! -f "${KEYRING}" ]]; then
-	echo -ne "E: ${KEYRING} is missing. Please install it!\n"
-	exit 1
+    echo -ne "E: ${KEYRING} is missing. Please install it!\n"
+    exit 1
 fi
 
 
@@ -134,8 +134,8 @@ cd /kohaclone
 ## bail if the repo is dirty
 /usr/bin/git diff-index --quiet --cached HEAD --
 if [[ "$?" -ne 0 ]]; then
-	echo "E: git repository is dirty, please clean it"
-	exit 1
+    echo "E: git repository is dirty, please clean it"
+    exit 1
 fi
 
 ## run update.sh inside pbuilder env
@@ -148,17 +148,17 @@ EPOCH="\$(date +%s)"
 TIMESTAMP="\$(date -d @\${EPOCH} -Iseconds)"
 ISODATE="\$(date +%Y%m%d)"
 if [[ -z "\${VERSION}" ]]; then
-	VERSION="\$(cat ./Koha.pm | grep "VERSION = \"" | cut -b13-20)"
+    VERSION="\$(cat ./Koha.pm | grep "VERSION = \"" | cut -b13-20)"
 fi
 GIT_HASH="\$(git rev-parse --short HEAD)"
 if [[ -z "\${REV}" ]]; then
-	REV="1"
+    REV="1"
 fi
 if [[ -z "\${DISTRIBUTION}" ]]; then
-	DISTRIBUTION="\$(bash -c 'lsb_release -cs')"
+    DISTRIBUTION="\$(bash -c 'lsb_release -cs')"
 fi
 if [[ -z "\${PKG_ARCH}" ]]; then
-	PKG_ARCH="all"
+    PKG_ARCH="all"
 fi
 if [[ -z "\${PKG_VERSION}" ]]; then
     PKG_VERSION="\${VERSION}~git\${ISODATE}.\${GIT_HASH}-\${REV}"
@@ -167,10 +167,10 @@ fi
 ## prep koha-manifest.json
 GIT_BRANCH="\$(git rev-parse --abbrev-ref HEAD)"
 if [[ -z "\${GIT_ORIGIN}" ]]; then
-	GIT_ORIGIN="PTFS Europe"
+    GIT_ORIGIN="PTFS Europe"
 fi
 if [[ -z "\${GIT_LABEL_PREFIX}" ]]; then
-  GIT_LABEL_PREFIX="Koha"
+    GIT_LABEL_PREFIX="Koha"
 fi
 GIT_SUITE="\${GIT_BRANCH}"
 GIT_ARCHIVE="\${GIT_BRANCH}"
@@ -221,8 +221,8 @@ export KOHA_HOME="/kohaclone"
 
 ## populate artefacts
 for FILENAME in /kohadebs/*.deb; do
-	FILENAME="\$(basename "\${FILENAME}")"
-	MANIFEST="\$(echo "\${MANIFEST}" | jq --arg filename "\$FILENAME" '.artefacts += [\$filename]')"
+    FILENAME="\$(basename "\${FILENAME}")"
+    MANIFEST="\$(echo "\${MANIFEST}" | jq --arg filename "\$FILENAME" '.artefacts += [\$filename]')"
 done
 
 ## mv tmp manifest to dest
