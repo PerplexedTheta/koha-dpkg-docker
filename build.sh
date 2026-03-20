@@ -131,6 +131,13 @@ echo "I: Running $0"
 ## cd to workdir, run update.sh
 cd /kohaclone
 
+## bail if the repo is dirty
+/usr/bin/git diff-index --quiet --cached HEAD --
+if [[ "$?" -ne 0 ]]; then
+	echo "E: git repository is dirty, please clean it"
+	exit 1
+fi
+
 ## run update.sh inside pbuilder env
 echo -ne '#!/usr/bin/env bash\\n\\napt clean ; apt update\napt upgrade -y\napt full-upgrade -y' | tee /tmp/apt_upgrade.sh
 /usr/bin/chmod -v 0755 /tmp/apt_upgrade.sh
@@ -139,11 +146,13 @@ echo -ne '#!/usr/bin/env bash\\n\\napt clean ; apt update\napt upgrade -y\napt f
 ## determine version
 EPOCH="\$(date +%s)"
 TIMESTAMP="\$(date -d @\${EPOCH} -Iseconds)"
+ISODATE="\$(date +%Y%m%d)"
 if [[ -z "\${VERSION}" ]]; then
 	VERSION="\$(cat ./Koha.pm | grep "VERSION = \"" | cut -b13-20)"
 fi
+GIT_HASH="\$(git rev-parse --short HEAD)"
 if [[ -z "\${REV}" ]]; then
-	REV="\${EPOCH}"
+	REV="1"
 fi
 if [[ -z "\${DISTRIBUTION}" ]]; then
 	DISTRIBUTION="\$(bash -c 'lsb_release -cs')"
@@ -151,7 +160,9 @@ fi
 if [[ -z "\${PKG_ARCH}" ]]; then
 	PKG_ARCH="all"
 fi
-PKG_VERSION="\${VERSION}-\${REV}"
+if [[ -z "\${PKG_VERSION}" ]]; then
+    PKG_VERSION="\${VERSION}~git\${ISODATE}.\${GIT_HASH}-\${REV}"
+fi
 
 ## prep koha-manifest.json
 GIT_BRANCH="\$(git rev-parse --abbrev-ref HEAD)"
@@ -166,13 +177,6 @@ GIT_ARCHIVE="\${GIT_BRANCH}"
 GIT_LABEL="\${GIT_LABEL_PREFIX} \${GIT_SUITE}"
 MANIFEST="{\"timestamp\":\"\${TIMESTAMP}\",\"origin\":\"\${GIT_ORIGIN}\",\"label\":\"\${GIT_LABEL}\",\"archive\":\"\${GIT_ARCHIVE}\",\"suite\":\"\${GIT_SUITE}\",\"package-arch\":\"\${PKG_ARCH}\",\"package-version\":\"\${PKG_VERSION}\",\"artefacts\":[\${ARTEFACTS}]}"
 MANIFEST="\$(echo "\${MANIFEST}" | jq '.')"
-
-## bail if the repo is dirty
-/usr/bin/git diff-index --quiet --cached HEAD --
-if [[ "$?" -ne 0 ]]; then
-	echo "E: git repository is dirty, please clean it"
-	exit 1
-fi
 
 ## prep env
 export PERL5LIB="/kohaclone:/kohaclone/lib"
