@@ -177,6 +177,7 @@ MANIFEST="\$(echo "\${MANIFEST}" | jq '.')"
 ## prep repo
 /usr/bin/git clean -f
 /usr/bin/git checkout -- .
+/usr/bin/git reset --hard HEAD
 
 ## prep env
 export PERL5LIB="/kohaclone:/kohaclone/lib"
@@ -188,7 +189,6 @@ export KOHA_HOME="/kohaclone"
 /usr/bin/git config --global user.email "root@localhost.localnet"
 /usr/bin/git config --global user.name  "root"
 /usr/bin/cat .gitignore | /usr/bin/xargs rm -rvf {} \\;
-/usr/bin/git reset --hard HEAD
 
 ## prep control
 ./debian/update-control
@@ -209,6 +209,11 @@ export KOHA_HOME="/kohaclone"
 /usr/bin/git add -f misc/translator\\/*
 /usr/bin/git commit --no-verify -m "LOCAL: Updated translations: \${PKG_VERSION}"
 
+## pre-flight check
+/usr/bin/git clean -f
+/usr/bin/git checkout -- .
+/usr/bin/git reset --hard HEAD
+
 ## build dpkg
 /usr/bin/dch --force-distribution -D "\${DISTRIBUTION}" -v "\${PKG_VERSION}" "Building git snapshot." || exit 1
 /usr/bin/dch -r "Building git snapshot." || exit 1
@@ -218,6 +223,7 @@ export KOHA_HOME="/kohaclone"
 ## tidy-up
 /usr/bin/git clean -f
 /usr/bin/git checkout -- .
+/usr/bin/git reset --hard HEAD
 
 ## populate artefacts
 for FILENAME in /kohadebs/*.deb; do
