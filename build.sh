@@ -64,7 +64,8 @@ fi
 ##
 ## prep env
 echo -ne "I: Creating temp directory\n"
-mkdir -vp /tmp/koha-dpkg-docker
+rm -rfv /tmp/koha-dpkg-docker
+mkdir -pv /tmp/koha-dpkg-docker
 cd /tmp/koha-dpkg-docker && pwd
 
 
@@ -73,33 +74,27 @@ cd /tmp/koha-dpkg-docker && pwd
 ## start pbuilder stuff -- create base
 echo -ne "I: Cleaning pbuilder\n"
 pbuilder clean
-rm -vf /var/cache/pbuilder/base.tgz.tmp
-rm -vf /var/cache/pbuilder/base.tgz
+rm -fv /var/cache/pbuilder/base.tgz.tmp
+rm -fv /var/cache/pbuilder/base.tgz
 echo -ne "I: Creating blank image\n"
 pbuilder create --distribution "${DISTRIBUTION}" --mirror "${MIRROR}/" --debootstrapopts "--components=main" --debootstrapopts "--keyring=${KEYRING}"
-
-## seed and execute additional deps
-echo -ne "I: Seeing apt control script\n"
-cat <<EOF | tee /tmp/koha-dpkg-docker/apt_control.sh
-#!/usr/bin/env bash
-  echo "I: Running $0"
-  echo "" > /etc/apt/sources.list ; \
-  rm -fv /etc/apt/sources.list.d/* ; \
-  echo "deb ${MIRROR} ${DISTRIBUTION} main contrib non-free non-free-firmware" > /etc/apt/sources.list.d/${FAMILY}.list ; \
-  echo "deb ${MIRROR} ${DISTRIBUTION}-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list.d/${FAMILY}.list ; \
-  echo "deb ${MIRROR_SEC} ${DISTRIBUTION_SEC} main contrib non-free non-free-firmware" >> /etc/apt/sources.list.d/${FAMILY_SEC}.list ; \
-  apt clean ; apt update ; apt upgrade -y ; apt full-upgrade -y \ ;
-  apt install apt-file -y ; \
-  apt clean ; apt update ; \
-  apt-file update
-EOF
-chmod -v 0755 /tmp/koha-dpkg-docker/apt_control.sh
 
 echo -ne "I: Seeding pbuilder script\n"
 cat <<EOF | tee /tmp/koha-dpkg-docker/pbuilder_control.sh
 #!/usr/bin/env bash
   echo "I: Running $0"
+  echo "I: Configuring apt" ; \
+  echo "" > /etc/apt/sources.list ; \
+  rm -fv /etc/apt/sources.list.d/* ; \
+  echo "deb ${MIRROR} ${DISTRIBUTION} main contrib non-free non-free-firmware" > /etc/apt/sources.list.d/${FAMILY}.list ; \
+  echo "deb ${MIRROR} ${DISTRIBUTION}-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list.d/${FAMILY}.list ; \
+  echo "deb ${MIRROR_SEC} ${DISTRIBUTION_SEC} main contrib non-free non-free-firmware" >> /etc/apt/sources.list.d/${FAMILY_SEC}.list ; \
+  echo "deb ${MIRROR} ${DISTRIBUTION}-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list.d/${FAMILY}.list ; \
+  apt clean ; apt update ; apt upgrade -y ; apt full-upgrade -y \ ;
+  apt install apt-file -y ; \
   apt clean ; apt update ; \
+  apt-file update ; \
+  echo "I: Installing dependencies" ; \
   apt install curl wget ca-certificates gnupg -y ; \
   wget -qO - ${REPO}/gpg.asc | gpg --dearmor | tee /usr/share/keyrings/koha.gpg >/dev/null ; \
   echo "deb [signed-by=/usr/share/keyrings/koha.gpg] ${REPO}/ ${SUITE} main" | tee /etc/apt/sources.list.d/koha.list ; \
@@ -115,8 +110,6 @@ EOF
 chmod -v 0755 /tmp/koha-dpkg-docker/pbuilder_control.sh
 
 ## run seeded file
-echo -ne "I: Running apt_control seed script atop pbuilder\n"
-pbuilder --execute --save-after-exec -- /tmp/koha-dpkg-docker/apt_control.sh
 echo -ne "I: Running pbuilder_control seed script atop pbuilder\n"
 pbuilder --execute --save-after-exec -- /tmp/koha-dpkg-docker/pbuilder_control.sh
 mv -v /var/cache/pbuilder/base.tgz /tmp/koha-dpkg-docker/base.tgz
@@ -174,10 +167,12 @@ GIT_LABEL="\${GIT_LABEL_PREFIX} \${GIT_SUITE}"
 MANIFEST="{\"timestamp\":\"\${TIMESTAMP}\",\"origin\":\"\${GIT_ORIGIN}\",\"label\":\"\${GIT_LABEL}\",\"archive\":\"\${GIT_ARCHIVE}\",\"suite\":\"\${GIT_SUITE}\",\"package-arch\":\"\${PKG_ARCH}\",\"package-version\":\"\${PKG_VERSION}\",\"artefacts\":[\${ARTEFACTS}]}"
 MANIFEST="\$(echo "\${MANIFEST}" | jq '.')"
 
-## prep repo
-/usr/bin/git clean -f
-/usr/bin/git checkout -- .
-/usr/bin/git reset --hard HEAD
+## bail if the repo is dirty
+/usr/bin/git diff-index --quiet --cached HEAD --
+if [[ "$?" -ne 0 ]]; then
+	echo "E: git repository is dirty, please clean it"
+	exit 1
+fi
 
 ## prep env
 export PERL5LIB="/kohaclone:/kohaclone/lib"
@@ -219,11 +214,6 @@ export KOHA_HOME="/kohaclone"
 /usr/bin/dch -r "Building git snapshot." || exit 1
 /usr/bin/git archive --format="tar" --prefix="koha-\${VERSION}/" HEAD | gzip > ../koha_\${VERSION}.orig.tar.gz || exit 1
 /usr/bin/pdebuild -- --basetgz "/var/cache/pbuilder/base.tgz" --buildresult "/kohadebs" || exit 1
-
-## tidy-up
-/usr/bin/git clean -f
-/usr/bin/git checkout -- .
-/usr/bin/git reset --hard HEAD
 
 ## populate artefacts
 for FILENAME in /kohadebs/*.deb; do
