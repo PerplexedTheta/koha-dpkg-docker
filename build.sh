@@ -147,8 +147,9 @@ echo -ne '#!/usr/bin/env bash\\n\\napt clean ; apt update\napt upgrade -y\napt f
 EPOCH="\$(date +%s)"
 TIMESTAMP="\$(date -d @\${EPOCH} -Iseconds)"
 ISODATE="\$(date +%Y%m%d)"
-if [[ -z "\${VERSION}" ]]; then
-    VERSION="\$(cat ./Koha.pm | grep "VERSION = \"" | cut -b13-20)"
+ISODT="\$(date +%Y%m%d.%H%M%S)"
+if [[ -z "\${RELEASE}" ]]; then
+    RELEASE="\$(cat ./Koha.pm | grep "VERSION = \"" | cut -b13-20)"
 fi
 GIT_HASH="\$(git rev-parse --short HEAD)"
 if [[ -z "\${REV}" ]]; then
@@ -160,8 +161,8 @@ fi
 if [[ -z "\${PKG_ARCH}" ]]; then
     PKG_ARCH="all"
 fi
-if [[ -z "\${PKG_VERSION}" ]]; then
-    PKG_VERSION="\${VERSION}~git\${ISODATE}.\${GIT_HASH}-\${REV}"
+if [[ -z "\${VERSION}" ]]; then
+    VERSION="\${RELEASE}~git\${ISODT}.\${GIT_HASH}"
 fi
 
 ## prep koha-manifest.json
@@ -175,7 +176,7 @@ fi
 GIT_SUITE="\${GIT_BRANCH}"
 GIT_ARCHIVE="\${GIT_BRANCH}"
 GIT_LABEL="\${GIT_LABEL_PREFIX} \${GIT_SUITE}"
-MANIFEST="{\"timestamp\":\"\${TIMESTAMP}\",\"origin\":\"\${GIT_ORIGIN}\",\"label\":\"\${GIT_LABEL}\",\"archive\":\"\${GIT_ARCHIVE}\",\"suite\":\"\${GIT_SUITE}\",\"package-arch\":\"\${PKG_ARCH}\",\"package-version\":\"\${PKG_VERSION}\",\"artefacts\":[\${ARTEFACTS}]}"
+MANIFEST="{\"timestamp\":\"\${TIMESTAMP}\",\"origin\":\"\${GIT_ORIGIN}\",\"label\":\"\${GIT_LABEL}\",\"archive\":\"\${GIT_ARCHIVE}\",\"suite\":\"\${GIT_SUITE}\",\"package-arch\":\"\${PKG_ARCH}\",\"package-version\":\"\${VERSION}-\${REV}\",\"artefacts\":[\${ARTEFACTS}]}"
 MANIFEST="\$(echo "\${MANIFEST}" | jq '.')"
 
 ## prep env
@@ -187,26 +188,27 @@ export KOHA_HOME="/kohaclone"
 ## prep git
 /usr/bin/git config --global user.email "root@localhost.localnet"
 /usr/bin/git config --global user.name  "root"
-/usr/bin/cat .gitignore | /usr/bin/xargs rm -rvf {} \\;
+cat .gitignore | /usr/bin/xargs rm -rvf {} \\;
 
 ## prep control
 ./debian/update-control
 /usr/bin/git add -f debian/control
-/usr/bin/git commit --no-verify -m "LOCAL: Updated debian/control file: \${PKG_VERSION}"
+/usr/bin/git commit --no-verify -m "LOCAL: Updated debian/control file: \${VERSION}"
 
 ## prep koha
 /usr/bin/perl Makefile.PL
 /usr/bin/make all
+rm -rfv blib/ Makefile MYMETA.yml MYMETA.json
 
 ## ingest variously build files
 /usr/bin/git add -f api\\/*
 /usr/bin/git add -f koha-tmpl\\/*
 /usr/bin/git add -f t\\/*
-/usr/bin/git commit --no-verify -m "LOCAL: Updated js / css: \${PKG_VERSION}"
+/usr/bin/git commit --no-verify -m "LOCAL: Updated js / css: \${VERSION}"
 
 ## ingest any changes to po-files
 /usr/bin/git add -f misc/translator\\/*
-/usr/bin/git commit --no-verify -m "LOCAL: Updated translations: \${PKG_VERSION}"
+/usr/bin/git commit --no-verify -m "LOCAL: Updated translations: \${VERSION}"
 
 ## pre-flight check
 /usr/bin/git clean -f
@@ -214,7 +216,7 @@ export KOHA_HOME="/kohaclone"
 /usr/bin/git reset --hard HEAD
 
 ## build dpkg
-/usr/bin/dch --force-distribution -D "\${DISTRIBUTION}" -v "\${PKG_VERSION}" "Building git snapshot." || exit 1
+/usr/bin/dch --force-distribution -D "\${DISTRIBUTION}" -v "\${VERSION}-\${REV}" "Building git snapshot." || exit 1
 /usr/bin/dch -r "Building git snapshot." || exit 1
 /usr/bin/git archive --format="tar" --prefix="koha-\${VERSION}/" HEAD | gzip > ../koha_\${VERSION}.orig.tar.gz || exit 1
 /usr/bin/pdebuild -- --basetgz "/var/cache/pbuilder/base.tgz" --buildresult "/kohadebs" || exit 1
