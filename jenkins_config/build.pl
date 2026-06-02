@@ -16,24 +16,27 @@ while ( my ( $var, $value ) = each %$env_vars ) {
 
 run(q{git clean -f});
 
-my $GITLAB_RAW_URL = "https://gitlab.com/openfifth/koha-debs-docker/raw/" . $ENV{KDD_BRANCH};
+my $GITHUB_RAW_URL = "https://github.com/openfifth/koha-dpkg-docker/raw/" . $ENV{KDD_BRANCH};
 
-my $docker_compose_env = "$GITLAB_RAW_URL/defaults.env";
+my $docker_compose_env = "$GITHUB_RAW_URL/defaults.env";
 run(qq{wget -O .env $docker_compose_env}, { exit_on_error => 1 });
 
-my $docker_compose_yml = "$GITLAB_RAW_URL/docker-compose.yml";
+my $docker_compose_yml = "$GITHUB_RAW_URL/docker-compose.yml";
 run(qq{wget -O docker-compose.yml $docker_compose_yml}, { exit_on_error => 1 });
+
+my $git_checkout = $ENV{'GIT_BRANCH'};
+run(qq{git checkout --track $git_checkout}, { exit_on_error => 1 });
 
 docker_cleanup();
 
 run(qq{mkdir -p \$DEBS_OUT});
 
 # Pull images
-my $cmd = 'docker-compose -f docker-compose.yml pull';
+my $cmd = 'docker compose -f docker-compose.yml pull';
 run($cmd, { exit_on_error => 1, use_pipe => 1 });
 
 # Run tests
-$cmd = 'docker-compose -f docker-compose.yml -p koha up --abort-on-container-exit --no-color --force-recreate';
+$cmd = 'docker compose -f docker-compose.yml -p koha up --abort-on-container-exit --no-color --force-recreate';
 run($cmd, { exit_on_error => 1, use_pipe => 1 });
 
 # Post cleanup
@@ -66,7 +69,7 @@ sub run {
 }
 
 sub docker_cleanup {
-    run(q{docker-compose -p koha down});
+    run(q{docker compose -p koha down});
     run(qq{docker stop \$(docker ps -a -f "name=koha_" -q)});
     run(qq{docker rm \$(docker ps -a -f "name=koha_" -q)});
     run(q{docker volume prune -f});
