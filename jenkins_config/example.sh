@@ -1,12 +1,21 @@
 #!/bin/bash -x
 
-## cd to kohaclone
-cd ${WORKSPACE}/kohaclone
+docker --version
+docker compose version
+cat /etc/issue
 
-export SYNC_REPO="${WORKSPACE}/kohaclone"
-export DEBS_OUT="${WORKSPACE}/kohadebs"
-export KDD_IMAGE="main"
-export KDD_BRANCH="main"
-## build kdd
-wget -O build.pl https://gitlab.com/openfifth/koha-debs-docker/-/raw/${KDD_BRANCH}/jenkins_config/build.pl
-/usr/bin/perl build.pl
+export KDD_IMAGE="unstable"
+export KDD_BRANCH="unstable"
+export SYNC_REPO="$(pwd)/kohaclone"
+export DEBS_OUT="$(pwd)/kohadebs"
+
+cd "$(pwd)/kohaclone"
+
+wget https://raw.githubusercontent.com/openfifth/koha-dpkg-docker/refs/heads/${KDD_BRANCH}/jenkins_config/koha_build_runner.pl \
+   -O ../koha_build_runner.pl
+
+perl ../koha_build_runner.pl \
+    --initial-docker-cleanup \
+    --warmup-timeout 500 \
+	--force-cleanup \
+	--verbose
