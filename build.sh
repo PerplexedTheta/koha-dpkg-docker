@@ -153,7 +153,7 @@ if [[ -z "\${RELEASE}" ]]; then
 fi
 GIT_HASH="\$(git rev-parse --short HEAD)"
 if [[ -z "\${REV}" ]]; then
-    REV="1"
+	REV="\${EPOCH}"
 fi
 if [[ -z "\${DISTRIBUTION}" ]]; then
     DISTRIBUTION="\$(bash -c 'lsb_release -cs')"
@@ -162,7 +162,7 @@ if [[ -z "\${PKG_ARCH}" ]]; then
     PKG_ARCH="all"
 fi
 if [[ -z "\${VERSION}" ]]; then
-    VERSION="\${RELEASE}~git\${ISODT}.\${GIT_HASH}"
+    VERSION="\${RELEASE}"
 fi
 
 ## prep koha-manifest.json
